@@ -1,0 +1,56 @@
+team_assignment = merge(full_day_dt,
+                        lineup_dt[, .(player, team)],
+                        by.x = "batter",
+                        by.y = "player")
+
+team_scores = aggregate(runs_generated ~ team + iteration, team_assignment, sum)
+team_mean_scores = aggregate(runs_generated ~ team, team_scores, mean)
+
+batter_result_dt = table(full_day_dt$batter, full_day_dt$play_type) %>% data.table()
+colnames(batter_result_dt) = c("batter",
+                               "result",
+                               "frequency")
+
+at_bat_counter = aggregate(frequency ~ batter, batter_result_dt, sum) %>% data.table()
+
+batter_result_dt[, is_result_hit := ifelse(result %in% c("SINGLE", "DOUBLE", "TRIPLE", "HOME RUN"),
+                                           1,
+                                           0)]
+
+batter_result_dt[, is_result_on_base := ifelse(result %in% c("SINGLE", "DOUBLE", "TRIPLE", "HOME RUN", "WALK", "INTENT WALK"),
+                                               1,
+                                               0)]
+
+batter_result_dt[, result_slugging_contribution := ifelse(result == "SINGLE",
+                                                          1,
+                                                          ifelse(result == "DOUBLE",
+                                                                 2,
+                                                                 ifelse(
+                                                                   result == "TRIPLE",
+                                                                   3,
+                                                                   ifelse(result == "HOME RUN",
+                                                                          4,
+                                                                          0)
+                                                                 )))]
+
+batter_result_dt[, was_home_run := ifelse(result == "HOME RUN",
+                                          1,
+                                          0)]
+
+batter_result_dt[, ab := sum(frequency), by=batter]
+
+batter_result_dt[, relative_result_frequency := frequency / ab]
+
+batter_result_dt[, `:=`(hit_contribution=is_result_hit * relative_result_frequency,
+                        obp_contribution=is_result_on_base * relative_result_frequency,
+                        slg_contribution=result_slugging_contribution * relative_result_frequency)]
+
+
+box_score <- batter_result_dt[, list(avg = sum(hit_contribution), 
+                                     obp = sum(obp_contribution),
+                                     slg = sum(slg_contribution),
+                                     hr = sum(was_home_run * frequency)), 
+                              by=batter]
+
+
+View(box_score)
