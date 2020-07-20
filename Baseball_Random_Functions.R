@@ -27,3 +27,16 @@ graph_results = function(id) {
                                                                  subtitle = "Simulated Results") + theme_bw()
 }
 
+remove_game = function(removal_game_id){
+  teams_to_remove = unique(lineup_dt[game_id == removal_game_id,team])
+  players_to_remove = unique(lineup_dt[game_id == removal_game_id,player])
+  
+  daily_win_dt = daily_win_dt[!(home_team %in% teams_to_remove) & !(away_team %in% teams_to_remove)]
+  daily_matchup_dt = daily_matchup_dt[!(batter %in% players_to_remove),]
+  full_day_dt = full_day_dt[!(batter %in% players_to_remove),]
+  day_stolen_base_dt = day_stolen_base_dt[!(runner_on_first %in% players_to_remove),]
+  day_rbi_dt = day_rbi_dt[!(batter %in% players_to_remove),]
+  day_run_dt = day_run_dt[!(scorer %in% players_to_remove),]
+  
+}
+
