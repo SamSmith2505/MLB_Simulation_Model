@@ -8,58 +8,36 @@ team_scores = aggregate(runs_generated ~ team + game_number + game_id + home_awa
                         sum) %>% data.table()
 team_mean_scores = aggregate(runs_generated ~ team, team_scores, mean) %>% data.table()
 
-win_margin_distribution = data.table(
-  home_team = character(),
-  home_margin = numeric(),
-  frequency = numeric()
-)
-
-total_run_distribution = data.table(
-  home_team = character(),
-  total_runs = numeric(),
-  frequency = numeric()
-)
-
+compiled_game_table = data.table()
 for (id in unique(team_scores$game_id)) {
-  game_calc_dt = team_scores[game_id == id, ]
-  game_freq_calc_table = data.table(
-    home_team = character(),
-    total_runs = numeric(),
-    home_margin = numeric()
-  )
+  print(paste0("COMPILING GAME ", id))
+  game_calc_dt = team_scores[game_id == id,]
+  home_team = unique(game_calc_dt[home_away == "H", team])
+  away_team = unique(game_calc_dt[home_away == "A", team])
   for (iter in 1:game_iterations) {
-    relevant_dt = game_calc_dt[game_number == iter, ]
-    home_team = relevant_dt[home_away == "H", team]
-    home_margin = relevant_dt[home_away == "H", runs_generated] - relevant_dt[home_away == "A", runs_generated]
-    total_runs = relevant_dt[home_away == "H", runs_generated] + relevant_dt[home_away == "A", runs_generated]
-    
-    iter_dt = cbind(home_team, total_runs, home_margin) %>% data.table()
-    game_freq_calc_table = rbind(game_freq_calc_table, iter_dt) %>% data.table
+    relevant_dt = game_calc_dt[game_number == iter,]
+    home_team_dt = relevant_dt[team == home_team, ]
+    away_team_dt = relevant_dt[team == away_team, ]
+    temp_dt = data.table(
+      home_team = home_team,
+      away_team = away_team,
+      home_runs_generated = home_team_dt[, runs_generated],
+      away_runs_generated = away_team_dt[, runs_generated]
+    )
+    compiled_game_table = rbind(compiled_game_table, temp_dt)
   }
-  game_win_margin_distribution = game_freq_calc_table[, frequency := .N, by = .(home_team, home_margin)]
-  game_total_run_distribution = game_freq_calc_table[, frequency := .N, by = .(home_team, total_runs)]
-  
-  game_win_margin_distribution$home_margin = as.integer(game_win_margin_distribution$home_margin)
-  game_total_run_distribution$total_runs = as.integer(game_total_run_distribution$total_runs)
-  
-  game_win_margin_distribution = unique(game_win_margin_distribution[, .(home_team,
-                                                                         home_margin,
-                                                                         frequency)])
-  
-  game_total_run_distribution = unique(game_total_run_distribution[, .(home_team,
-                                                                       total_runs,
-                                                                       frequency)])
-  
-  
-  game_win_margin_distribution$frequency = game_win_margin_distribution$frequency / game_iterations
-  game_total_run_distribution$frequency = game_total_run_distribution$frequency / game_iterations
-  
-  game_win_margin_distribution = setorder(game_win_margin_distribution, cols = home_margin)
-  game_total_run_distribution = setorder(game_total_run_distribution, cols = total_runs)
-  
-  win_margin_distribution = rbind(win_margin_distribution, game_win_margin_distribution)
-  total_run_distribution = rbind(total_run_distribution, game_total_run_distribution)
 }
+
+compiled_game_table = data.table(compiled_game_table)
+
+compiled_game_table[, `:=`(
+  did_home_team_cover_plus = ifelse(home_runs_generated - away_runs_generated >= -1, 1, 0),
+  did_home_team_cover_minus = ifelse(home_runs_generated - away_runs_generated >= 2, 1, 0),
+  did_away_team_cover_plus = ifelse(home_runs_generated - away_runs_generated <= 1, 1, 0),
+  did_away_team_cover_minus = ifelse(home_runs_generated - away_runs_generated <= -2, 1, 0)
+)]
+
+compiled_game_table = aggregate(. ~ home_team + away_team, compiled_game_table, mean)
 
 daily_win_dt = merge(daily_win_dt,
                      team_mean_scores,
@@ -77,6 +55,54 @@ daily_win_dt = daily_win_dt[, .(
   away_team_win_pct = away_wins / game_iterations,
   home_team_runs = runs_generated.x,
   away_team_runs = runs_generated.y
+)]
+
+compiled_game_table = data.table(compiled_game_table)
+daily_win_dt = merge(daily_win_dt,
+                     compiled_game_table[, .(
+                       home_team,
+                       away_team,
+                       did_home_team_cover_plus,
+                       did_home_team_cover_minus,
+                       did_away_team_cover_plus,
+                       did_away_team_cover_minus
+                     )],
+                     by = c("home_team", "away_team"))
+
+daily_win_dt[,`:=`(
+  home_team_win_odds = round(ifelse(home_team_win_pct / (1 - home_team_win_pct) > 1, 
+                              - (home_team_win_pct / (1 - home_team_win_pct)) * 100,
+                              ((1 - home_team_win_pct) / home_team_win_pct) * 100)),
+  away_team_win_odds = round(ifelse(away_team_win_pct / (1 - away_team_win_pct) > 1, 
+                              - (away_team_win_pct / (1 - away_team_win_pct)) * 100,
+                              ((1 - away_team_win_pct) / away_team_win_pct) * 100)),
+  home_team_cover_plus_odds = round(ifelse(did_home_team_cover_plus / (1 - did_home_team_cover_plus) > 1, 
+                              - (did_home_team_cover_plus / (1 - did_home_team_cover_plus)) * 100,
+                              ((1 - did_home_team_cover_plus) / did_home_team_cover_plus) * 100)),
+  home_team_cover_minus_odds = round(ifelse(did_home_team_cover_minus / (1 - did_home_team_cover_minus) > 1, 
+                                     - (did_home_team_cover_minus / (1 - did_home_team_cover_minus)) * 100,
+                                     ((1 - did_home_team_cover_minus) / did_home_team_cover_minus) * 100)),
+  away_team_cover_plus_odds = round(ifelse(did_away_team_cover_plus / (1 - did_away_team_cover_plus) > 1, 
+                                     - (did_away_team_cover_plus / (1 - did_away_team_cover_plus)) * 100,
+                                     ((1 - did_away_team_cover_plus) / did_away_team_cover_plus) * 100)),
+  away_team_cover_minus_odds = round(ifelse(did_away_team_cover_minus / (1 - did_away_team_cover_minus) > 1, 
+                                      - (did_away_team_cover_minus / (1 - did_away_team_cover_minus)) * 100,
+                                      ((1 - did_away_team_cover_minus) / did_away_team_cover_minus) * 100))
+)]
+
+daily_win_dt = daily_win_dt[, .(
+  home_team,
+  away_team,
+  home_team_runs,
+  away_team_runs,
+  home_team_win_pct,
+  away_team_win_pct,
+  home_team_win_odds,
+  away_team_win_odds,
+  home_team_cover_plus_odds,
+  home_team_cover_minus_odds,
+  away_team_cover_plus_odds,
+  away_team_cover_minus_odds
 )]
 
 full_day_dt = unique(full_day_dt)
