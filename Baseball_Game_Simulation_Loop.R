@@ -1,28 +1,7 @@
 lineup_dt = fread("daily_lineup_df.csv")
 lineup_dt = lineup_dt[player != "",]
 
-rm(mlb_dt)
-rm(bullpen_abs)
-rm(team_assignment)
-rm(first_at_bat_dt)
-
-full_day_dt = data.table()
-
-daily_win_dt = data.table(
-  home_team = character(),
-  away_team = character(),
-  home_wins = integer(),
-  away_wins = integer()
-)
-
-daily_matchup_dt = data.table()
-day_stolen_base_dt = data.table(runner_on_first = character(),
-                                game_number = integer())
-day_rbi_dt = data.table(batter = character(),
-                        rbi = integer(),
-                        game_number = integer())
-day_run_dt = data.table(scorer = character(),
-                        game_number = integer())
+lineup_dt = lineup_dt[!(game_id %in% daily_win_dt$game_id)]
 
 for (game in unique(lineup_dt$game_id)) {
   skip_to_next = F
@@ -221,7 +200,7 @@ for (game in unique(lineup_dt$game_id)) {
           by = c("pitcher_hand", "batter_hand", "play_type")
         )
         
-        full_at_bat_probability_dt[, outcome_probability := (batter_result_frequency * batter_result_weight) + (pitcher_result_frequency * pitcher_result_weight) + (park_result_frequency * park_result_weight)]
+        full_at_bat_probability_dt[, outcome_probability := (batter_result_frequency * batter_result_weight) + (pitcher_result_frequency * pitcher_result_weight) * park_adjustment]
         full_at_bat_probability_dt[, outcome_probability := outcome_probability + ((1 - sum(outcome_probability)) / nrow(full_at_bat_probability_dt)), by = player.y]
         
         at_bat_outcome_dt = full_at_bat_probability_dt[, .(batter = player.x,
@@ -483,6 +462,7 @@ for (game in unique(lineup_dt$game_id)) {
   
   
   game_win_totals = data.table(
+    game_id = game,
     home_team = home_team,
     away_team = away_team,
     home_wins = home_wins,
