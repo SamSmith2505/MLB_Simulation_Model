@@ -379,6 +379,26 @@ colnames(home_field_result_frequency) = c(
   "park_result_frequency"
 )
 
+full_freq = home_field_result_frequency[, .(
+  total_result_frequency = mean(park_result_frequency)
+), by = .(pitcher_hand, batter_hand, play_type)]
+
+home_field_result_frequency = merge(home_field_result_frequency,
+                                    full_freq,
+                                    by = c("pitcher_hand",
+                                           "batter_hand",
+                                           "play_type"))
+
+home_field_result_frequency[, park_adjustment := (park_result_frequency - total_result_frequency) + 1]
+
+home_field_result_frequency = home_field_result_frequency[, .(
+  pitcher_hand,
+  batter_hand,
+  play_type,
+  game_home_team,
+  park_adjustment
+)]
+
 base_stealing_dt[is.na(stolen_bases), stolen_bases := 0]
 base_stealing_dt[is.na(caught_stealing), caught_stealing := 0]
 
@@ -395,5 +415,24 @@ base_stealing_dt[is.na(stolen_base_success_odds), stolen_base_success_odds := 0]
 
 base_stealing_dt = rbind(base_stealing_dt, list("REPLACEMENT BATTER", 0, 0))
 base_stealing_dt = rbind(base_stealing_dt, list("REPLACEMENT PITCHER", 0, 0))
+
+full_day_dt = data.table()
+
+daily_win_dt = data.table(
+  game_id = integer(),
+  home_team = character(),
+  away_team = character(),
+  home_wins = integer(),
+  away_wins = integer()
+)
+
+daily_matchup_dt = data.table()
+day_stolen_base_dt = data.table(runner_on_first = character(),
+                                game_number = integer())
+day_rbi_dt = data.table(batter = character(),
+                        rbi = integer(),
+                        game_number = integer())
+day_run_dt = data.table(scorer = character(),
+                        game_number = integer())
 
 
