@@ -1,59 +1,339 @@
-#Libraries
 library(httr)
+
 library(rvest)
+
 library(purrr)
+
 library(jsonlite)
+
 library(dplyr)
+
 library(lubridate)
-library(mongolite)
 
-#####################
-# ~ Pull tables from mongodb ~ #
-#####################
 
-#Credentials
-username <- 'thatsmrlongcut'
-password <- 'football17'
 
-#Index of table names in mongo to environment names in R
-index <-
-  data.frame(
-    MONGODB_NAME = c("MLB_GAME_LIST", "MLB_BATTING_ORDER"),
-    ENV_NAME = c('games', 'batting_order'),
-    stringsAsFactors = FALSE
-  )
+#Function to transform 1:1 game info
 
-#Run a loop and import/assign
-for(i in 1:nrow(index)) {
-  #Establish connection with mongo db
-  con <-
-    mongo(
-      collection = "NFL",
-      db = index$MONGODB_NAME[i],
-      url = paste0("mongodb+srv://", username, ":", password, '@nfl-bsxce.mongodb.net/test?retryWrites=true&w=majority')
-    )
-  #Assign object
-  assign(index$ENV_NAME[i], con$find(), envir = .GlobalEnv)
-  rm(con)
+info_structure <- function(.data) {
+  idf <-
+    
+    .data %>%
+    
+    unlist
+  
+  
+  
+  idf %>%
+    
+    paste %>%
+    
+    as.data.frame %>%
+    
+    t %>%
+    
+    as.data.frame %>%
+    
+    mutate_all(paste) %>%
+    
+    setNames(names(idf))
+  
 }
 
 
-#####################
-# ~ Do what you need ~ #
-#####################
 
-#Observe what games have a batting order currently (THIS WILL UPDATE LIVE -- MY PC IS CONTINUOUSLY SCRAPING FOR IT)
+#Get today's date
 
-batting_order = data.table(batting_order)
-lineup_dt = batting_order[, .(
+today.date <- as.Date(now())
+
+
+
+#Establish the schedule URL -- link that has all the links to the games today
+
+base_url <- "https://statsapi.mlb.com/api"
+
+today_sch_url <-
+  paste0(
+    base_url,
+    "/v1/schedule?sportId=1&date=",
+    today.date,
+    "&gameTypes=E,S,R,A,F,D,L,W&hydrate=team(leaders(showOnPreview(leaderCategories=[homeRuns,runsBattedIn,battingAverage],statGroup=[pitching,hitting]))),linescore(matchup,runners),flags,liveLookin,review,broadcasts(all),decisions,person,probablePitcher,stats,homeRuns,previousPlay,game(content(media(featured,epg),summary),tickets),seriesStatus(useOverride=true)&useLatestGames=false&scheduleTypes=events,games&language=en&leagueIds=103,104"
+  )
+
+#//TO DO -- all those additional commands in that link will eventually be problematic (so I will look to erasing them)
+
+
+
+#Get all the links for today's games!
+
+schedule <-
+  
+  GET(today_sch_url) %>%
+  
+  read_html() %>%
+  
+  html_text() %>%
+  
+  fromJSON() %>%
+  
+  .$dates %>%
+  
+  .$games %>%
+  
+  map( ~ dplyr::select(., gamePk)) %>%
+  
+  unlist() %>%
+  
+  as.character
+
+
+
+#Create the link to the API for that game
+
+#// TO DO There is an easier way to go about this but it would require me digging through their API for hours
+
+game_links <-
+  paste0("https://statsapi.mlb.com/api/v1.1/game/",
+         schedule,
+         "/feed/live?language=en")
+
+
+
+
+
+all_data <-
+  
+  #Run a loop through all of the games scheduled
+  
+  lapply(1:length(schedule), function(j) {
+    print(j)
+    
+    
+    
+    #Establish the gameid in the loop
+    
+    game_id <- schedule[j]
+    
+    
+    
+    #Get the json dump
+    
+    df <-
+      
+      GET(game_links[j]) %>%
+      
+      read_html() %>%
+      
+      html_text() %>%
+      
+      fromJSON()
+    
+    
+    
+    #Grab the home and away team names
+    
+    index_1 <- c("home", "away")
+    
+    index_2 <- c("H", "A")
+    
+    
+    
+    home_away_df <-
+      
+      lapply(1:length(index_1), function(i) {
+        df$gameData$teams[[index_1[i]]][c("id", "name", "teamCode", "abbreviation")] %>%
+          
+          info_structure(.) %>%
+          
+          dplyr::select(team = name) %>%
+          
+          mutate(h_a = index_2[i])
+        
+      }) %>%
+      
+      invoke(rbind, .)
+    
+    
+    
+    #Collect the player information
+    
+    plyrs <-
+      
+      lapply(1:length(df$gameData$players), function(x) {
+        df$gameData$players[[x]] %>% info_structure(.)
+        
+      }) %>%
+      
+      invoke(plyr::rbind.fill, .) %>%
+      
+      #Only select what you think might be necessary
+      
+      dplyr::select(
+        player_id = id,
+        fullName,
+        nameSlug,
+        active,
+        primaryPosition.code,
+        primaryPosition.type,
+        primaryPosition.abbreviation
+      )
+    
+    
+    
+    #Combine the batting order for the home/away team
+    
+    index_1 <- c("home", "away")
+    
+    index_2 <- c("H", "A")
+    
+    
+    
+    #Check to see if there currently is a batting order!
+    
+    bat_ordr_avail <-
+      
+      (lapply(1:length(index_1), function(i) {
+        (df$liveData$boxscore$teams[[index_1[i]]]$battingOrder %>% length()) > 0
+        
+      }) %>%
+        
+        invoke(c, .) %>%
+        
+        sum) == 2
+    
+    
+    
+    #If the batting order is not available output just the home/away/team/gameid bs
+    
+    if (bat_ordr_avail == FALSE) {
+      end_df <-
+        
+        home_away_df %>%
+        
+        mutate(
+          gameid = game_id,
+          
+          home_away = h_a,
+          
+          compile.timestamp = now()
+        ) %>%
+        
+        dplyr::select(compile.timestamp, gameid, team, home_away)
+      
+    } else {
+      #Structure the end frame
+      
+      end_df <-
+        
+        lapply(1:length(index_1), function(i) {
+          #Raw batting order
+          
+          batting_order <-
+            
+            df$liveData$boxscore$teams[[index_1[i]]]$battingOrder %>%
+            
+            as.data.frame %>%
+            
+            setNames('player_id') %>%
+            
+            mutate_all(paste) %>%
+            
+            mutate(battingOrder = row_number()) %>%
+            
+            left_join(plyrs, by = 'player_id')
+          
+          
+          
+          #Grab the probable pitchers for the game
+          
+          probable_pitcher <-
+            
+            df$gameData$probablePitchers[[index_1[i]]] %>%
+            
+            info_structure(.) %>%
+            
+            as.data.frame %>%
+            
+            dplyr::select(player_id = id) %>%
+            
+            left_join(plyrs, by = 'player_id') %>%
+            
+            mutate(battingOrder = 10)
+          
+          
+          
+          #If the pitchers ID is found in the batting order -- do nothing
+          
+          if (probable_pitcher$player_id %in% batting_order$player_id) {
+          } else {
+            #If it is not found -- add them as the 10th batter
+            
+            batting_order <- rbind(batting_order, probable_pitcher)
+            
+          }
+          
+          
+          
+          #Add the meta data and output
+          
+          batting_order %>%
+            
+            mutate(home_away = index_2[i],
+                   
+                   team = home_away_df$team[match(home_away, home_away_df$h_a)],
+                   
+                   gameid = game_id)
+          
+        }) %>%
+        
+        invoke(rbind, .) %>%
+        
+        #Add datetime of compile
+        
+        mutate(compile.timestamp = now()) %>%
+        
+        dplyr::select(
+          compile.timestamp,
+          gameid,
+          team,
+          home_away,
+          
+          fullName,
+          nameSlug,
+          active,
+          battingOrder,
+          primaryPosition.code,
+          
+          primaryPosition.type,
+          primaryPosition.abbreviation
+        )
+      
+    }
+    
+    #Output
+    
+    return(end_df)
+    
+  }) %>%
+  
+  invoke(plyr::rbind.fill, .)
+
+all_data = data.table(all_data)
+
+all_data[, game_count := .N, by = gameid]
+
+lineup_dt = all_data[game_count > 11, .(
   game_id = gameid,
   team,
   home_away,
   player = fullName,
   lineup_spot = battingOrder,
-  position = as.integer(primaryPosition_code)
+  position = primaryPosition.code
 )]
-lineup_dt[is.na(position), position := 10]
+
+lineup_dt[player == "Jackie Bradley Jr.", player := "Jackie Bradley"]
+lineup_dt[player == "Fernando Tatis Jr.", player := "Fernando Tatis"]
+lineup_dt[player == "Shed Long Jr.", player := "Shed Long"]
+
 
 
 
