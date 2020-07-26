@@ -1,5 +1,9 @@
+box_stolen_base_dt = day_stolen_base_dt
+box_run_dt = day_run_dt
+box_daily_win_dt = daily_win_dt
+
 team_assignment = merge(full_day_dt,
-                        lineup_dt[, .(player, team, game_id)],
+                        full_lineup_dt[, .(player, team, game_id)],
                         by.x = "batter",
                         by.y = "player") %>% unique()
 
@@ -39,16 +43,16 @@ compiled_game_table[, `:=`(
 
 compiled_game_table = aggregate(. ~ home_team + away_team, compiled_game_table, mean)
 
-daily_win_dt = merge(daily_win_dt,
+box_daily_win_dt = merge(box_daily_win_dt,
                      team_mean_scores,
                      by.x = "home_team",
                      by.y = "team")
-daily_win_dt = merge(daily_win_dt,
+box_daily_win_dt = merge(box_daily_win_dt,
                      team_mean_scores,
                      by.x = "away_team",
                      by.y = "team")
 
-daily_win_dt = daily_win_dt[, .(
+box_daily_win_dt = box_daily_win_dt[, .(
   home_team,
   away_team,
   home_team_win_pct = home_wins / game_iterations,
@@ -58,7 +62,7 @@ daily_win_dt = daily_win_dt[, .(
 )]
 
 compiled_game_table = data.table(compiled_game_table)
-daily_win_dt = merge(daily_win_dt,
+box_daily_win_dt = merge(box_daily_win_dt,
                      compiled_game_table[, .(
                        home_team,
                        away_team,
@@ -69,7 +73,7 @@ daily_win_dt = merge(daily_win_dt,
                      )],
                      by = c("home_team", "away_team"))
 
-daily_win_dt[,`:=`(
+box_daily_win_dt[,`:=`(
   home_team_win_odds = round(ifelse(home_team_win_pct / (1 - home_team_win_pct) > 1, 
                               - (home_team_win_pct / (1 - home_team_win_pct)) * 100,
                               ((1 - home_team_win_pct) / home_team_win_pct) * 100)),
@@ -90,7 +94,7 @@ daily_win_dt[,`:=`(
                                       ((1 - did_away_team_cover_minus) / did_away_team_cover_minus) * 100))
 )]
 
-daily_win_dt = daily_win_dt[, .(
+box_daily_win_dt = box_daily_win_dt[, .(
   home_team,
   away_team,
   home_team_runs,
@@ -158,7 +162,8 @@ box_score <- batter_result_dt[, list(
 by = batter]
 
 pitching_box_score = full_day_dt[, .(
-  pitcher = paste(pitcher, " ", home_away),
+  pitcher,
+  home_away,
   play_type,
   outs_created,
   runs_generated,
@@ -171,6 +176,26 @@ pitching_box_score = full_day_dt[, .(
   is_strikeout = ifelse(play_type == "STRIKEOUT", 1, 0),
   game_number
 )]
+
+pitcher_win_calc = full_lineup_dt[position == "1", .(player,
+                                                     team)]
+
+home_win_dt = box_daily_win_dt[, .(team = home_team, win_pct = home_team_win_pct)]
+
+away_win_dt = box_daily_win_dt[, .(team = away_team, win_pct = away_team_win_pct)]
+
+pitcher_calc_team_win_dt = rbind(home_win_dt, away_win_dt)
+
+pitcher_win_calc = merge(pitcher_win_calc,
+                         pitcher_calc_team_win_dt,
+                         by = "team")
+
+pitching_box_score = merge(pitching_box_score,
+                           pitcher_win_calc[, .(player, win_pct)],
+                           by.x = "pitcher",
+                           by.y = "player")
+
+pitching_box_score[, pitcher := paste(pitcher, " ", home_away)]
 
 k_counter = pitching_box_score[play_type == "STRIKEOUT", pitcher]
 k_counter = table(k_counter) %>% data.table()
@@ -200,6 +225,16 @@ pitcher_box_score[, `:=`(
   is_whip_contribution = NULL
 )]
 
+
+pitcher_box_score[, pitcher_merge := substr(pitcher, 1, nchar(pitcher) - 4)]
+
+pitcher_box_score = merge(pitcher_box_score,
+                          pitcher_win_calc[, .(player, win_pct)],
+                          by.x = "pitcher_merge",
+                          by.y = "player")
+
+pitcher_box_score$pitcher_merge = NULL
+
 singles_dt = full_day_dt[play_type == "SINGLE", ]
 doubles_dt = full_day_dt[play_type == "DOUBLE", ]
 triples_dt = full_day_dt[play_type == "TRIPLE", ]
@@ -224,18 +259,23 @@ triples_dt = unique(triples_dt[, .(batter, game_number, iteration_triples)])
 walks_dt = unique(walks_dt[, .(batter, game_number, iteration_walks)])
 hr_dt = unique(hr_dt[, .(batter, game_number, iteration_hrs)])
 
-day_rbi_dt = aggregate(rbi ~ ., day_rbi_dt, sum) %>% data.table()
+agg_day_rbi_dt = day_rbi_dt
 
-day_run_dt[!is.na(scorer), runs_scored := 1]
-day_run_dt[is.na(runs_scored), runs_scored := 0]
-day_run_dt = aggregate(runs_scored ~ ., day_run_dt, sum) %>% data.table()
+agg_day_rbi_dt = aggregate(rbi ~ ., agg_day_rbi_dt, sum) %>% data.table()
 
-day_stolen_base_dt[, stolen_bases := 1]
-day_stolen_base_dt = aggregate(stolen_bases ~ ., day_stolen_base_dt, sum) %>% data.table()
+agg_box_run_dt = box_run_dt
 
-day_rbi_dt = day_rbi_dt[order(batter, game_number), ]
-day_run_dt = day_run_dt[order(batter, game_number), ]
-day_stolen_base_dt = day_stolen_base_dt[order(batter, game_number), ]
+agg_box_run_dt[!is.na(scorer), runs_scored := 1]
+agg_box_run_dt[is.na(runs_scored), runs_scored := 0]
+agg_box_run_dt = aggregate(runs_scored ~ ., agg_box_run_dt, sum) %>% data.table()
+
+agg_box_stolen_base_dt = box_stolen_base_dt
+agg_box_stolen_base_dt[, stolen_bases := 1]
+agg_box_stolen_base_dt = aggregate(stolen_bases ~ ., agg_box_stolen_base_dt, sum) %>% data.table()
+
+agg_day_rbi_dt = agg_day_rbi_dt[order(batter, game_number), ]
+agg_box_run_dt = agg_box_run_dt[order(batter, game_number), ]
+agg_box_stolen_base_dt = agg_box_stolen_base_dt[order(batter, game_number), ]
 
 fantasy_score_base = unique(full_day_dt[, .(batter, game_number)])
 fantasy_score_base = merge(
@@ -270,20 +310,20 @@ fantasy_score_base = merge(
 )
 fantasy_score_base = merge(
   fantasy_score_base,
-  day_rbi_dt,
+  agg_day_rbi_dt,
   by = c("batter", "game_number"),
   all.x = T
 )
 fantasy_score_base = merge(
   fantasy_score_base,
-  day_run_dt,
+  agg_box_run_dt,
   by.x = c("batter", "game_number"),
   by.y = c("scorer", "game_number"),
   all.x = T
 )
 fantasy_score_base = merge(
   fantasy_score_base,
-  day_stolen_base_dt,
+  agg_box_stolen_base_dt,
   by.x = c("batter", "game_number"),
   by.y = c("runner_on_first", "game_number"),
   all.x = T
@@ -327,4 +367,15 @@ box_score[, `:=`(
 
 View(dk_score_table_hitter)
 View(dk_score_table_pitcher)
-View(daily_win_dt)
+View(box_daily_win_dt)
+
+
+day_stolen_base_dt = day_stolen_base_dt[, .(
+  runner_on_first,
+  game_number
+)]
+
+day_run_dt = day_run_dt[, .(
+  scorer,
+  game_number
+)]
