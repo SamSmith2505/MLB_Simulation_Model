@@ -2,15 +2,29 @@ box_stolen_base_dt = day_stolen_base_dt
 box_run_dt = day_run_dt
 box_daily_win_dt = daily_win_dt
 
+full_lineup_dt[player == "REPLACEMENT BATTER", player := paste0("REPLACEMENT BATTER", home_away)]
+full_day_dt[batter == "REPLACEMENT BATTER", batter := paste0("REPLACEMENT BATTER", home_away)]
+
 team_assignment = merge(full_day_dt,
                         full_lineup_dt[, .(player, team, game_id)],
                         by.x = "batter",
-                        by.y = "player") %>% unique()
+                        by.y = "player", allow.cartesian = T) %>% unique()
 
 team_scores = aggregate(runs_generated ~ team + game_number + game_id + home_away,
                         team_assignment,
                         sum) %>% data.table()
-team_mean_scores = aggregate(runs_generated ~ team, team_scores, mean) %>% data.table()
+
+team_scores = team_scores[order(team, runs_generated)]
+
+team_score_calc = copy(team_scores)
+
+team_score_calc[, score_rank := as.numeric(row.names(.SD)), by = team]
+
+team_score_calc[score_rank < 5, runs_generated := NA]
+
+team_score_calc[score_rank > (game_iterations - 5), runs_generated := NA]
+
+team_mean_scores = aggregate(runs_generated ~ team, team_score_calc, mean) %>% data.table()
 
 compiled_game_table = data.table()
 for (id in unique(team_scores$game_id)) {
@@ -379,3 +393,4 @@ day_run_dt = day_run_dt[, .(
   scorer,
   game_number
 )]
+
