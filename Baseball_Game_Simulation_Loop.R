@@ -1,4 +1,3 @@
-#lineup_dt = fread("daily_lineup_df.csv")
 full_lineup_dt = lineup_dt
 lineup_dt = lineup_dt[!(team %in% daily_win_dt$home_team) &
                         !(team %in% daily_win_dt$away_team), ]
@@ -13,11 +12,6 @@ for (game in unique(lineup_dt$game_id)) {
     away_team = unique(current_game[home_away == "A", team])
     home_wins = 0
     away_wins = 0
-    
-    batter_result_frequency_dt = subset(batter_result_frequency,
-                                        dataset %in% c("MLB 2019 Regular Season"))
-    pitcher_result_frequency_dt = subset(pitcher_result_frequency,
-                                         dataset %in% c("MLB 2019 Regular Season"))
     
     current_game[!(player %in% batter_result_frequency_dt$batter) &
                    position != 1, player := "REPLACEMENT BATTER"]
@@ -69,12 +63,13 @@ for (game in unique(lineup_dt$game_id)) {
       pitcher_hand = pitcher_hand.x,
       play_type,
       result_frequency,
+      pitcher_probability_multiplier,
       is_starting_pitcher = 1
     )]
     
     game_bullpen_frequency_dt = subset(bullpen_result_frequency,
                                        team %in% c(home_team, away_team))
-    game_bullpen_frequency_dt[, `:=`(game_id = game,
+    game_bullpen_frequency_dt[, `:=`(game_id = as.integer(game),
                                      home_away = ifelse(team == home_team, 'H', "A"))]
     game_pitcher_result_frequency_dt = rbindlist(list(
       game_pitcher_result_frequency_dt,
@@ -104,8 +99,8 @@ for (game in unique(lineup_dt$game_id)) {
       away_score = 0
       out_count = 0
       
-      home_pitch_count_max = rnorm(1, mean = game_historical_pitch_count[home_away == "H", pitch_count_mean], sd = game_historical_pitch_count[home_away == "H", pitch_count_sd])
-      away_pitch_count_max = rnorm(1, mean = game_historical_pitch_count[home_away == "A", pitch_count_mean], sd = game_historical_pitch_count[home_away == "A", pitch_count_sd])
+      home_pitch_count_max = max(rnorm(1, mean = game_historical_pitch_count[home_away == "H", pitch_count_mean], sd = game_historical_pitch_count[home_away == "H", pitch_count_sd]), 70)
+      away_pitch_count_max = max(rnorm(1, mean = game_historical_pitch_count[home_away == "A", pitch_count_mean], sd = game_historical_pitch_count[home_away == "A", pitch_count_sd]), 70)
       
       for (inning_half in (1:50)) {
         out_count = 0
@@ -210,7 +205,9 @@ for (game in unique(lineup_dt$game_id)) {
                                              pitcher_hand,
                                              batter_hand,
                                              play_type,
-                                             pitcher_result_frequency = result_frequency)],
+                                             pitcher_result_frequency = result_frequency,
+                                             pitcher_probability_multiplier
+                                             )],
             by = c("pitcher_hand", "batter_hand", "play_type")
           )
           
@@ -220,7 +217,7 @@ for (game in unique(lineup_dt$game_id)) {
             by = c("pitcher_hand", "batter_hand", "play_type")
           )
           
-          full_at_bat_probability_dt[, outcome_probability := (batter_result_frequency * batter_result_weight) + (pitcher_result_frequency * pitcher_result_weight) * park_adjustment]
+          full_at_bat_probability_dt[, outcome_probability := batter_result_frequency * pitcher_probability_multiplier * park_adjustment]
           full_at_bat_probability_dt[, outcome_probability := outcome_probability + ((1 - sum(outcome_probability)) / nrow(full_at_bat_probability_dt)), by = player.y]
           
           at_bat_outcome_dt = full_at_bat_probability_dt[, .(batter = player.x,
@@ -301,6 +298,14 @@ for (game in unique(lineup_dt$game_id)) {
           }
           ab_pitch_count_mean = mean(pitch_count_dt[, pitches_mean.x], pitch_count_dt[, pitches_mean.y])
           ab_pitch_count_sd = mean(pitch_count_dt[, pitches_sd.x], pitch_count_dt[, pitches_sd.y])
+          
+          if(is.na(ab_pitch_count_mean)){
+            ab_pitch_count_mean = 3.5
+          }
+          
+          if(is.na(ab_pitch_count_sd)){
+            ab_pitch_count_sd = 1
+          }
           pitches_in_at_bat = rnorm(n = 1,
                                     mean = ab_pitch_count_mean,
                                     sd = ab_pitch_count_sd)
@@ -498,3 +503,4 @@ for (game in unique(lineup_dt$game_id)) {
     next
   }
 }
+
