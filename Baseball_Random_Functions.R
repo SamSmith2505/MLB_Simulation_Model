@@ -28,8 +28,8 @@ graph_results = function(id) {
 }
 
 remove_game = function(removal_game_id){
-  teams_to_remove = unique(lineup_dt[game_id == removal_game_id,team])
-  players_to_remove = unique(lineup_dt[game_id == removal_game_id,player])
+  teams_to_remove = unique(full_lineup_dt[game_id == removal_game_id, team])
+  players_to_remove = unique(full_lineup_dt[game_id == removal_game_id, player])
   
   daily_win_dt = daily_win_dt[!(home_team %in% teams_to_remove) & !(away_team %in% teams_to_remove)]
   daily_matchup_dt = daily_matchup_dt[!(batter %in% players_to_remove),]
@@ -37,6 +37,9 @@ remove_game = function(removal_game_id){
   day_stolen_base_dt = day_stolen_base_dt[!(runner_on_first %in% players_to_remove),]
   day_rbi_dt = day_rbi_dt[!(batter %in% players_to_remove),]
   day_run_dt = day_run_dt[!(scorer %in% players_to_remove),]
-  
+  dk_score_table_hitter = dk_score_table_hitter[!(batter %in% players_to_remove),]
+  dk_score_table_pitcher = dk_score_table_pitcher[!(pitcher %in% players_to_remove),]
 }
+
+removal_game_id = 635916
 
