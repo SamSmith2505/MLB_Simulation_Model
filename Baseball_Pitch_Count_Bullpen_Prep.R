@@ -24,8 +24,8 @@ pitcher_pitches_thrown = merge(pitcher_pitches_thrown_mean,
 
 colnames(batter_pitches_seen) = c("dataset", "batter", "pitches_mean", "pitches_sd")
 colnames(pitcher_pitches_thrown) = c("dataset", "pitcher", "pitches_mean", "pitches_sd")
-batter_pitches_seen = subset(batter_pitches_seen, dataset == "MLB 2019 Regular Season") %>% data.table()
-pitcher_pitches_thrown = subset(pitcher_pitches_thrown, dataset == "MLB 2019 Regular Season") %>% data.table()
+batter_pitches_seen = subset(batter_pitches_seen, dataset == "MLB 2020 Regular Season") %>% data.table()
+pitcher_pitches_thrown = subset(pitcher_pitches_thrown, dataset == "MLB 2020 Regular Season") %>% data.table()
 
 pitcher_pitch_counts = aggregate(number_of_pitches ~ game_id + pitcher, mlb_dt, sum)
 pitcher_pitch_means = aggregate(number_of_pitches ~ pitcher, pitcher_pitch_counts, mean)
@@ -39,15 +39,15 @@ first_at_bat_dt = subset(
   (
     inning == "1T" &
       road_score == 0 &
-      runner_on_first == "" &
-      runner_on_second == "" &
-      runner_on_third == ""
+      is.na(runner_on_first) &
+      is.na(runner_on_second) &
+      is.na(runner_on_third)
   ) |
     (
       inning == "1B" &
         home_score == 0 &
-        runner_on_first == 0 &
-        runner_on_second == 0 & runner_on_third == 0
+        is.na(runner_on_first) &
+        is.na(runner_on_second) & is.na(runner_on_third)
     )
 )
 
@@ -84,24 +84,33 @@ bullpen_result_frequency = merge(
 
 bullpen_result_frequency[, result_frequency := Freq / Freq_total]
 
-bullpen_result_frequency = subset(bullpen_result_frequency, dataset == "MLB 2019 Regular Season")
-bullpen_result_frequency = bullpen_result_frequency[pitcher_hand == "R", .(player = "BULLPEN",
-                                                                           game_id = NA_integer_,
-                                                                           team = pitching_team,
-                                                                           home_away = NA_character_,
-                                                                           lineup_spot = 11,
-                                                                           position = 1,
-                                                                           dataset, 
-                                                                           pitcher_id = NA_integer_,
-                                                                           batter_hand,
-                                                                           pitcher_hand,
-                                                                           play_type,
-                                                                           result_frequency,
-                                                                           is_starting_pitcher = 0
+bullpen_result_frequency = merge(bullpen_result_frequency,
+                                  league_result_frequency[, .(play_type, batter_hand, pitcher_hand.x, league_freq_total)],
+                                  by.x = c("play_type", "batter_hand", "pitcher_hand"),
+                                  by.y = c("play_type", "batter_hand", "pitcher_hand.x"))
+
+bullpen_result_frequency[, pitcher_probability_multiplier := result_frequency / league_freq_total]
+
+bullpen_result_frequency = subset(bullpen_result_frequency, dataset == "MLB 2020 Regular Season")
+bullpen_result_frequency = bullpen_result_frequency[, .(
+  player = "BULLPEN",
+  game_id = NA_integer_,
+  team = pitching_team,
+  home_away = NA_character_,
+  lineup_spot = 11,
+  position = 1,
+  dataset,
+  pitcher_id = NA_integer_,
+  batter_hand,
+  pitcher_hand,
+  play_type,
+  result_frequency,
+  pitcher_probability_multiplier,
+  is_starting_pitcher = 0
 )]
 
 replacement_batter = batter_pitches_seen[, .(
-  dataset = "MLB 2019 Regular Season",
+  dataset = "MLB 2020 Regular Season",
   batter = "REPLACEMENT BATTER",
   pitches_mean = mean(pitches_mean),
   pitches_sd = mean(pitches_sd, na.rm = T)
@@ -110,7 +119,7 @@ replacement_batter = batter_pitches_seen[, .(
 batter_pitches_seen = rbind(batter_pitches_seen, replacement_batter)
 
 replacement_pitcher = pitcher_pitches_thrown[, .(
-  dataset = "2019 MLB Regular Season",
+  dataset = "MLB 2020 Regular Season",
   pitcher = "REPLACEMENT PITCHER",
   pitches_mean = mean(pitches_mean),
   pitches_sd = mean(pitches_sd, na.rm = T)
