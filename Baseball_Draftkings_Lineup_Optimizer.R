@@ -18,14 +18,14 @@ dk_players[is.na(position), position := 1]
 
 dk_salaries = fread("DKSalaries.csv")
 
+dk_salaries = dk_salaries[!(Name == "Luis Garcia"),]
+
 dk_players[position == 1, player := substr(player, 0, nchar(player) - 4)]
 
 dk_players = merge(dk_players,
                    dk_salaries[, .(player = Name,
                                    position = `Roster Position`,
                                    dk_salary = Salary)], by = "player")
-
-##TO BE CHANGED ONCE WE HAVE DK SALARIES
 
 dk_players = dk_players[, .(player,
                             mean_points,
@@ -41,6 +41,7 @@ dk_players[position %in% c("2B", "2B/OF", "2B/3B", "1B/2B"), position_mat := "2B
 dk_players[position %in% c("3B", "1B/3B", "3B/OF"), position_mat := "3B"]
 dk_players[position %in% c("SS", "2B/SS", "SS/OF", "3B/SS"), position_mat := "SS"]
 dk_players[position == "OF", position_mat := "OF"]
+dk_players[position == "1B/SS", position_mat := "SS"]
 
 print(paste0(nrow(dk_players[is.na(position_mat)]), " Players Excluded Due To Position Error"))
 
@@ -155,3 +156,12 @@ View(player_exposure)
 final_submission_sheet = unique(final_submission_sheet)
 
 fwrite(final_submission_sheet, paste0("dk_lineups_", today(), ".csv"), row.names = F)
+
+best_lineup = optimal_lineups[lineup_id == 1, .(
+  player,
+  projected_points = mean_points,
+  position,
+  draftkings_salary = dk_salary
+)]
+
+View(best_lineup)
