@@ -38,3 +38,4 @@ remove_game = function(removal_game_id){
   day_run_dt = day_run_dt[!(scorer %in% players_to_remove),]
   
 }
+
