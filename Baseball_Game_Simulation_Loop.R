@@ -1,8 +1,11 @@
 full_lineup_dt = lineup_dt
+
 lineup_dt = lineup_dt[!(team %in% daily_win_dt$home_team) &
-                        !(team %in% daily_win_dt$away_team), ]
+                        !(team %in% daily_win_dt$away_team),]
 
 lineup_dt = lineup_dt[!(game_id %in% daily_win_dt$game_id)]
+
+replacement_bind_dt = batter_result_frequency_dt[batter == 'REPLACEMENT BATTER']
 
 for (game in unique(lineup_dt$game_id)) {
   skip_to_next = F
@@ -24,7 +27,7 @@ for (game in unique(lineup_dt$game_id)) {
       by.x = "player",
       by.y = "batter",
       all.x = T
-    )
+    ) %>% unique()
     
     game_batter_result_frequency_dt = game_batter_result_frequency_dt[, .(
       player,
@@ -33,13 +36,42 @@ for (game in unique(lineup_dt$game_id)) {
       home_away,
       lineup_spot,
       position,
-      dataset,
       batter_id,
       pitcher_hand,
       batter_hand = batter_hand.x,
       play_type,
       result_frequency
     )]
+    
+    game_batter_result_frequency_dt = rbind(game_batter_result_frequency_dt,
+                                            replacement_batting_pitcher[, .(
+                                              player = batter,
+                                              game_id = game,
+                                              team = home_team,
+                                              home_away = 'H',
+                                              lineup_spot = NA,
+                                              position = 1,
+                                              batter_id,
+                                              pitcher_hand,
+                                              batter_hand = batter_hand.x,
+                                              play_type,
+                                              result_frequency
+                                            )])
+    
+    game_batter_result_frequency_dt = rbind(game_batter_result_frequency_dt,
+                                            replacement_batting_pitcher[, .(
+                                              player = batter,
+                                              game_id = game,
+                                              team = away_team,
+                                              home_away = 'A',
+                                              lineup_spot = NA,
+                                              position = 1,
+                                              batter_id,
+                                              pitcher_hand,
+                                              batter_hand = batter_hand.x,
+                                              play_type,
+                                              result_frequency
+                                            )])
     
     game_pitcher_dt = subset(current_game, position == 1)
     game_pitcher_result_frequency_dt = merge(
@@ -57,7 +89,6 @@ for (game in unique(lineup_dt$game_id)) {
       home_away,
       lineup_spot,
       position,
-      dataset,
       pitcher_id,
       batter_hand,
       pitcher_hand = pitcher_hand.x,
@@ -99,8 +130,14 @@ for (game in unique(lineup_dt$game_id)) {
       away_score = 0
       out_count = 0
       
-      home_pitch_count_max = max(rnorm(1, mean = game_historical_pitch_count[home_away == "H", pitch_count_mean], sd = game_historical_pitch_count[home_away == "H", pitch_count_sd]), 70)
-      away_pitch_count_max = max(rnorm(1, mean = game_historical_pitch_count[home_away == "A", pitch_count_mean], sd = game_historical_pitch_count[home_away == "A", pitch_count_sd]), 70)
+      home_pitch_count_max = max(
+        rnorm(1, mean = game_historical_pitch_count[home_away == "H", pitch_count_mean], sd = game_historical_pitch_count[home_away == "H", pitch_count_sd]),
+        50
+      )
+      away_pitch_count_max = max(
+        rnorm(1, mean = game_historical_pitch_count[home_away == "A", pitch_count_mean], sd = game_historical_pitch_count[home_away == "A", pitch_count_sd]),
+        50
+      )
       
       for (inning_half in (1:50)) {
         out_count = 0
@@ -175,41 +212,62 @@ for (game in unique(lineup_dt$game_id)) {
             is_starter_pitching = is_away_starter_pitching
           }
           
-          if(is_starter_pitching == 0){
-            bullpen_hand_randomizer = runif(1,0,1)
+          if (!(batter$player %in% game_batter_result_frequency_dt$player) |
+              nrow(game_batter_result_frequency_dt[player == batter$player]) == 1) {
+            batter$player = 'REPLACEMENT BATTER'
+          }
+          
+          if ((
+            batter$player == 'REPLACEMENT BATTER' &
+            batter$position == 1 |
+            nrow(game_batter_result_frequency_dt[player == batter$player]) < 3
+          ) &
+          batter$position == 1 |
+          batter == 'Michael Pineda' |
+          batter == 'Jacob deGrom' | batter == 'Drew Smyly'| batter == 'Wade Miley' | batter == 'Austin Voth' | batter == 'Chi Chi Gonzalez' | batter == 'Aaron Sanchez'| batter == 'Logan Allen' | batter == 'Chad Kuhl' | batter == 'Nick Neidert' | batter == 'Taijuan Walker' | batter == 'Huascar Ynoa' | batter == 'Carlos Martinez' | batter == 'Ryan Weathers' | batter == 'Kwang Hyun Kim' | batter == 'Bryse Wilson' | batter == 'John Means' | batter == 'Wil Crowe' | batter == 'Taylor Widener' | batter == 'Johan Oviedo' | batter == 'Spencer Howard' | batter == 'Kyle Muller' | batter == 'Mike Minor' | batter == 'Rich Hill' | batter == 'Touki Toussaint' | batter == 'Carlos Carrasco' | batter == 'Ranger Suarez' | batter == 'Elieser Hernandez') {
+            batter$player = 'REPLACEMENT PITCHER'
+          }
+          
+          if (is_starter_pitching == 0) {
+            bullpen_hand_randomizer = runif(1, 0, 1)
             bullpen_ab_hand = ifelse(bullpen_hand_randomizer > .5, "R", "L")
           }
           
-          at_bat_frequency_dt = game_batter_result_frequency_dt[player == batter$player, .(player,
+          
+          at_bat_frequency_dt = game_batter_result_frequency_dt[player == batter[,player] 
+                                                                & lineup_spot == batter[, lineup_spot]
+                                                                & home_away == ifelse(inning_half %% 2 == 1, 'A', 'H'), .(player,
                                                                                            pitcher_hand,
                                                                                            batter_hand,
                                                                                            play_type,
                                                                                            result_frequency)]
+          
           at_bat_pitching_frequency_dt = subset(
             game_pitcher_result_frequency_dt,
             home_away != batter$home_away &
-              is_starting_pitcher == is_starter_pitching 
+              is_starting_pitcher == is_starter_pitching
           )
           
-          if(is_starter_pitching == 0) {
-            at_bat_pitching_frequency_dt = at_bat_pitching_frequency_dt[pitcher_hand == bullpen_ab_hand,]
+          if (is_starter_pitching == 0) {
+            at_bat_pitching_frequency_dt = at_bat_pitching_frequency_dt[pitcher_hand == bullpen_ab_hand, ]
           }
-            
+          
           full_at_bat_probability_dt = merge(
             at_bat_frequency_dt[, .(player,
                                     pitcher_hand,
                                     batter_hand,
                                     play_type,
                                     batter_result_frequency = result_frequency)],
-            at_bat_pitching_frequency_dt[, .(player,
-                                             pitcher_hand,
-                                             batter_hand,
-                                             play_type,
-                                             pitcher_result_frequency = result_frequency,
-                                             pitcher_probability_multiplier
-                                             )],
+            at_bat_pitching_frequency_dt[, .(
+              player,
+              pitcher_hand,
+              batter_hand,
+              play_type,
+              pitcher_result_frequency = result_frequency,
+              pitcher_probability_multiplier
+            )],
             by = c("pitcher_hand", "batter_hand", "play_type")
-          )
+          ) %>% unique()
           
           full_at_bat_probability_dt = merge(
             full_at_bat_probability_dt,
@@ -236,7 +294,7 @@ for (game in unique(lineup_dt$game_id)) {
               upper_bound_outcome_prob > outcome
           )
           
-          at_bat_final_outcome = at_bat_final_outcome[1, ]
+          at_bat_final_outcome = at_bat_final_outcome[1,]
           at_bat_final_outcome[, outs_created := ifelse(
             play_type %in% c(
               "POP OUT",
@@ -284,6 +342,14 @@ for (game in unique(lineup_dt$game_id)) {
           
           pitch_count_dt = at_bat_final_outcome[, .(batter, pitcher)]
           pitch_count_dt = merge(pitch_count_dt, batter_pitches_seen[, .(batter, pitches_mean, pitches_sd)], by = "batter") %>% unique()
+          if (nrow(pitch_count_dt) == 0) {
+            pitch_count_dt = data.table(
+              batter = at_bat_final_outcome$batter,
+              pitcher = at_bat_final_outcome$pitcher,
+              pitches_mean = 3.5,
+              pitches_sd = 1.2
+            )
+          }
           if (pitch_count_dt$pitcher != "BULLPEN") {
             pitch_count_dt = merge(pitch_count_dt, pitcher_pitches_thrown[, .(pitcher, pitches_mean, pitches_sd)], by = "pitcher")
           } else {
@@ -296,14 +362,25 @@ for (game in unique(lineup_dt$game_id)) {
               pitches_sd = NULL
             )]
           }
+          
+          if (nrow(pitch_count_dt) == 0) {
+            pitch_count_dt = data.table(
+              pitches_mean.x = 4,
+              pitches_sd.x = 1,
+              pitches_mean.y = 4,
+              pitches_sd.y = 1,
+              pitches_mean = NULL,
+              pitches_sd = NULL
+            )
+          }
           ab_pitch_count_mean = mean(pitch_count_dt[, pitches_mean.x], pitch_count_dt[, pitches_mean.y])
           ab_pitch_count_sd = mean(pitch_count_dt[, pitches_sd.x], pitch_count_dt[, pitches_sd.y])
           
-          if(is.na(ab_pitch_count_mean)){
+          if (is.na(ab_pitch_count_mean)) {
             ab_pitch_count_mean = 3.5
           }
           
-          if(is.na(ab_pitch_count_sd)){
+          if (is.na(ab_pitch_count_sd)) {
             ab_pitch_count_sd = 1
           }
           pitches_in_at_bat = rnorm(n = 1,
@@ -404,6 +481,7 @@ for (game in unique(lineup_dt$game_id)) {
               basepaths_dt$runner_on_third = NA
             }
           }
+          #print(at_bat_final_outcome$play_type)
           at_bat_final_outcome$runs_generated = runs_scored_on_at_bat
           if (runs_scored_on_at_bat > 0) {
             batter_rbi_dt = data.table()
@@ -444,12 +522,16 @@ for (game in unique(lineup_dt$game_id)) {
       home_away_assignment = lineup_dt[, .(player,
                                            home_away)]
       
+      game_dt[grepl('T', inning, fixed = T), home_away := 'A']
+      game_dt[is.na(home_away), home_away := 'H']
+      
       game_dt[, h_a_identifier := NULL]
       
-      game_dt = merge(game_dt,
-                      home_away_assignment,
-                      by.x = "batter",
-                      by.y = "player")
+      # game_dt = merge(game_dt,
+      #                 home_away_assignment,
+      #                 by.x = "batter",
+      #                 by.y = "player")
+      
       
       home_at_bats = subset(game_dt, home_away == "H")
       away_at_bats = subset(game_dt, home_away == "A")
@@ -475,9 +557,9 @@ for (game in unique(lineup_dt$game_id)) {
       game_stolen_base_dt$game_number = iteration
       game_run_dt$game_number = iteration
       game_rbi_dt$game_number = iteration
-      game_run_dt = game_run_dt[scorer != "0" & !is.na(scorer), ]
-      game_rbi_dt = game_rbi_dt[batter != "" & !is.na(batter), ]
-      game_stolen_base_dt = game_stolen_base_dt[!is.na(runner_on_first), ]
+      game_run_dt = game_run_dt[scorer != "0" & !is.na(scorer),]
+      game_rbi_dt = game_rbi_dt[batter != "" & !is.na(batter),]
+      game_stolen_base_dt = game_stolen_base_dt[!is.na(runner_on_first),]
       daily_matchup_dt = rbindlist(list(daily_matchup_dt, game_dt))
       day_stolen_base_dt = rbindlist(list(day_stolen_base_dt, game_stolen_base_dt))
       day_rbi_dt = rbindlist(list(day_rbi_dt, game_rbi_dt))
@@ -503,4 +585,3 @@ for (game in unique(lineup_dt$game_id)) {
     next
   }
 }
-
