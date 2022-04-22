@@ -21,7 +21,7 @@ info_structure <- function(.data) {
 }
 
 #Get today's date
-today.date <- as.Date(now())
+today.date <- as.Date(now() - hours(6))
 
 #Establish the schedule URL -- link that has all the links to the games today
 base_url <- "https://statsapi.mlb.com/api"
@@ -163,7 +163,7 @@ lineup_dt = all_data[game_count > 11, .(
   lineup_spot = battingOrder,
   position = primaryPosition.code
 )]
-
+#lineup_dt = fread('daily_lineup_df.csv')
 lineup_dt[player == "Jackie Bradley Jr.", player := "Jackie Bradley"]
 lineup_dt[player == "Fernando Tatis Jr.", player := "Fernando Tatis"]
 lineup_dt[player == "Shed Long Jr.", player := "Shed Long"]
@@ -175,19 +175,30 @@ lineup_dt[player == "J.T. Riddle", player := "JT Riddle"]
 lineup_dt[player == "Lance McCullers Jr.", player := "Lance McCullers"]
 lineup_dt[player == "AJ Pollock", player := "A.J. Pollock"]
 
-ab_count_2019 = unique(batter_result_frequency_dt[dataset == "MLB 2019 Regular Season",.(batter, Freq_total)])
-ab_count_2019[, total_eligible_ab := sum(Freq_total), by = batter]
-ab_count_2019 = unique(ab_count_2019[, .(batter, total_eligible_ab)])
+ab_count = unique(batter_result_frequency_dt[,.(batter, Freq_total)])
+ab_count[, total_eligible_ab := sum(Freq_total), by = batter]
+ab_count = unique(ab_count[, .(batter, total_eligible_ab)])
 
 lineup_dt = merge(lineup_dt,
-                  ab_count_2019,
+                  ab_count,
                   by.x = "player",
                   by.y = "batter",
                   all.x = T)
 
+lineup_dt[(is.na(total_eligible_ab) | total_eligible_ab < 20) & position != 1, player := 'REPLACEMENT BATTER']
+
 lineup_dt = lineup_dt[order(game_id, -home_away, lineup_spot)]
-#lineup_dt[total_eligible_ab < 20 & position != "1", player := "REPLACEMENT BATTER"]
+
 lineup_dt$total_eligible_ab = NULL
 
 
 print(paste0(nrow(lineup_dt) / 20, " GAMES PULLED"))
+
+
+
+
+
+
+
+
+
