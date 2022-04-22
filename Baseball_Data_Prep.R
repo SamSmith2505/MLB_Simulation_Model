@@ -1,7 +1,8 @@
 library(readxl)
 
-season_2017 = fread("2017_MLB_PbP_Logs.csv")
-colnames(season_2017) = c(
+season_2020 = read_excel("2020_MLB_PbP_Logs.xlsx") %>% setDT()
+
+colnames(season_2020) = c(
   "dataset",
   "game_id",
   "date",
@@ -48,159 +49,8 @@ colnames(season_2017) = c(
   "description"
 )
 
-season_2018 = fread("2018_MLB_PbP_Logs.csv")
-
-colnames(season_2018) = c(
-  "dataset",
-  "game_id",
-  "date",
-  "inning",
-  "road_score",
-  "home_score",
-  "batting_team",
-  "batter",
-  "batter_id",
-  "batter_hand",
-  "runner_on_first",
-  "runner_on_second",
-  "runner_on_third",
-  "pitching_team",
-  "pitcher",
-  "pitcher_id",
-  "pitcher_hand",
-  "catcher",
-  "first_base",
-  "second_base",
-  "third_base",
-  "shortstop",
-  "left_field",
-  "center_field",
-  "right_field",
-  "number_of_pitches",
-  "pitch_sequence",
-  "ball_1",
-  "ball_2",
-  "ball_3",
-  "ball_4",
-  "strike_1",
-  "strike_2",
-  "strike_3",
-  "hit_type",
-  "play_type",
-  "runs",
-  "outs",
-  "stolen_bases",
-  "caught_stealing",
-  "defensive_interference",
-  "passed_ball",
-  "wild_pitch",
-  "description"
-)
-season_2019 = fread("2019_MLB_PbP_Logs.csv")
-season_2019$V45 = NULL
-colnames(season_2019) = c(
-  "dataset",
-  "game_id",
-  "date",
-  "inning",
-  "road_score",
-  "home_score",
-  "batting_team",
-  "batter",
-  "batter_id",
-  "batter_hand",
-  "runner_on_first",
-  "runner_on_second",
-  "runner_on_third",
-  "pitching_team",
-  "pitcher",
-  "pitcher_id",
-  "pitcher_hand",
-  "catcher",
-  "first_base",
-  "second_base",
-  "third_base",
-  "shortstop",
-  "left_field",
-  "center_field",
-  "right_field",
-  "number_of_pitches",
-  "pitch_sequence",
-  "ball_1",
-  "ball_2",
-  "ball_3",
-  "ball_4",
-  "strike_1",
-  "strike_2",
-  "strike_3",
-  "hit_type",
-  "play_type",
-  "runs",
-  "outs",
-  "stolen_bases",
-  "caught_stealing",
-  "defensive_interference",
-  "passed_ball",
-  "wild_pitch",
-  "description"
-)
-
-newest_file = paste0("~/Dropbox/20-mlb-pbp/",format.Date(today() - days(2), "%m"), "-", format.Date(today() - days(2), "%d"), "-", year(today()), "-mlb-season-pbp-feed.xlsx")
-
-new_season_data = read_excel(newest_file, sheet = "2020-MLB-SEASON-PbP")
-
-new_season_data = new_season_data[2:nrow(new_season_data),]
-
-colnames(new_season_data) = c(
-  "dataset",
-  "game_id",
-  "date",
-  "inning",
-  "road_score",
-  "home_score",
-  "batting_team",
-  "batter",
-  "batter_id",
-  "batter_hand",
-  "runner_on_first",
-  "runner_on_second",
-  "runner_on_third",
-  "pitching_team",
-  "pitcher",
-  "pitcher_id",
-  "pitcher_hand",
-  "catcher",
-  "first_base",
-  "second_base",
-  "third_base",
-  "shortstop",
-  "left_field",
-  "center_field",
-  "right_field",
-  "number_of_pitches",
-  "pitch_sequence",
-  "ball_1",
-  "ball_2",
-  "ball_3",
-  "ball_4",
-  "strike_1",
-  "strike_2",
-  "strike_3",
-  "hit_type",
-  "play_type",
-  "runs",
-  "outs",
-  "stolen_bases",
-  "caught_stealing",
-  "defensive_interference",
-  "passed_ball",
-  "wild_pitch",
-  "description"
-)
-
-new_season_data = data.table(new_season_data)
-
-new_season_data[, `:=`(
+season_2020[, `:=`(
+  date = as.character(date),
   road_score = as.integer(road_score),
   home_score = as.integer(home_score),
   batter_id = as.numeric(batter_id),
@@ -215,17 +65,162 @@ new_season_data[, `:=`(
   wild_pitch = as.integer(wild_pitch)
 )]
 
-mlb_dt = rbind(season_2017, season_2018, season_2019, new_season_data) %>% data.table()
+season_2021 = read_excel("2021_MLB_PbP_Logs.xlsx") %>% setDT()
 
-mlb_dt[batter == "Yoshitomo Tsutsugo", batter := "Yoshi Tsutsugo"]
+colnames(season_2021) = c(
+  "dataset",
+  "game_id",
+  "date",
+  "inning",
+  "road_score",
+  "home_score",
+  "batting_team",
+  "batter",
+  "batter_id",
+  "batter_hand",
+  "runner_on_first",
+  "runner_on_second",
+  "runner_on_third",
+  "pitching_team",
+  "pitcher",
+  "pitcher_id",
+  "pitcher_hand",
+  "catcher",
+  "first_base",
+  "second_base",
+  "third_base",
+  "shortstop",
+  "left_field",
+  "center_field",
+  "right_field",
+  "number_of_pitches",
+  "pitch_sequence",
+  "ball_1",
+  "ball_2",
+  "ball_3",
+  "ball_4",
+  "strike_1",
+  "strike_2",
+  "strike_3",
+  "hit_type",
+  "play_type",
+  "runs",
+  "outs",
+  "stolen_bases",
+  "caught_stealing",
+  "defensive_interference",
+  "passed_ball",
+  "wild_pitch",
+  "description"
+)
 
+season_2021[, `:=`(
+  date = as.character(date),
+  road_score = as.integer(road_score),
+  home_score = as.integer(home_score),
+  batter_id = as.numeric(batter_id),
+  pitcher_id = as.integer(pitcher_id),
+  number_of_pitches = as.integer(number_of_pitches),
+  runs = as.integer(runs),
+  outs = as.integer(outs),
+  stolen_bases = as.integer(stolen_bases),
+  caught_stealing = as.integer(caught_stealing),
+  defensive_interference = as.integer(defensive_interference),
+  passed_ball = as.integer(passed_ball),
+  wild_pitch = as.integer(wild_pitch)
+)]
+
+newest_file = paste0("~/Dropbox/22-mlb-pbp/",format.Date(today() - days(2), "%m"), "-", format.Date(today() - days(2), "%d"), "-", year(today()), "-mlb-season-pbp-feed.xlsx")
+
+season_2022 = read_excel(newest_file) %>% setDT()
+
+season_2022 = season_2022[2:nrow(season_2022),1:44]
+
+colnames(season_2022) = c(
+  "dataset",
+  "game_id",
+  "date",
+  "inning",
+  "road_score",
+  "home_score",
+  "batting_team",
+  "batter",
+  "batter_id",
+  "batter_hand",
+  "runner_on_first",
+  "runner_on_second",
+  "runner_on_third",
+  "pitching_team",
+  "pitcher",
+  "pitcher_id",
+  "pitcher_hand",
+  "catcher",
+  "first_base",
+  "second_base",
+  "third_base",
+  "shortstop",
+  "left_field",
+  "center_field",
+  "right_field",
+  "number_of_pitches",
+  "pitch_sequence",
+  "ball_1",
+  "ball_2",
+  "ball_3",
+  "ball_4",
+  "strike_1",
+  "strike_2",
+  "strike_3",
+  "hit_type",
+  "play_type",
+  "runs",
+  "outs",
+  "stolen_bases",
+  "caught_stealing",
+  "defensive_interference",
+  "passed_ball",
+  "wild_pitch",
+  "description"
+)
+
+season_2022[, `:=`(
+  date = as.character(date),
+  road_score = as.integer(road_score),
+  home_score = as.integer(home_score),
+  batter_id = as.numeric(batter_id),
+  pitcher_id = as.integer(pitcher_id),
+  number_of_pitches = as.integer(number_of_pitches),
+  runs = as.integer(runs),
+  outs = as.integer(outs),
+  stolen_bases = as.integer(stolen_bases),
+  caught_stealing = as.integer(caught_stealing),
+  defensive_interference = as.integer(defensive_interference),
+  passed_ball = as.integer(passed_ball),
+  wild_pitch = as.integer(wild_pitch)
+)]
+season_2022[, dataset := 'MLB 2021 Regular Season']
+
+mlb_dt = rbind(season_2020, season_2021, season_2022) %>% data.table()
+
+mlb_dt = mlb_dt[dataset %in% c("MLB 2020 Regular Season", "MLB 2021 Regular Season"),]
+mlb_dt[batter == 'Jackie Bradley', batter := 'Jackie Bradley Jr.']
+mlb_dt[batter == "Hyun-Jin Ryu", batter := "Hyun Jin Ryu"]
+mlb_dt[batter == "AJ Pollock", batter := "A.J. Pollock"]
+mlb_dt[pitcher == "Lance McCullers", pitcher := "Lance McCullers Jr."]
+mlb_dt[batting_team == 'Cleveland Indians', batting_team := 'Cleveland Guardians']
+mlb_dt[pitching_team == 'Cleveland Indians', pitching_team := 'Cleveland Guardians']
 base_stealing_dt = mlb_dt[, .(runner_on_first, stolen_bases, caught_stealing)]
 
-mlb_dt = mlb_dt[play_type != "",]
+mlb_dt = mlb_dt[play_type != "", ]
 mlb_dt[play_type %in% c("SAC FLY"), play_type := "FLYOUT"]
 mlb_dt[play_type %in% c("GROUNDED INTO DP", "SAC BUNT", "FIELDERS CHOICE", "DOUBLE PLAY"), play_type := "GROUNDOUT"]
 
-rm(season_2017, season_2018, season_2019)
+rm(season_2020, season_2021, season_2022)
+
+mlb_dt[batter_hand %in% c('B', 'S') &
+         pitcher_hand == 'R', batter_hand := 'L']
+mlb_dt[batter_hand %in% c('B', 'S') &
+         pitcher_hand == 'L', batter_hand := 'R']
 
 batter_result_frequency = mlb_dt[, .(dataset,
                                      batter,
@@ -285,132 +280,186 @@ batter_result_frequency[, result_frequency := Freq / Freq_total]
 
 pitcher_result_frequency[, result_frequency := Freq / Freq_total]
 
-###NEW STUFF
-# batter_result_frequency[, `:=`(Freq = as.numeric(Freq),
-#                                Freq_total = as.numeric(Freq_total))]
-#
-# pitcher_result_frequency[, `:=`(Freq = as.numeric(Freq),
-#                                 Freq_total = as.numeric(Freq_total))]
-#
-# batter_result_frequency = batter_result_frequency[Freq_total > 30, ]
-# pitcher_result_frequency = pitcher_result_frequency[Freq_total > 30, ]
-#
-# batter_result_frequency[season == 2017, `:=`(Freq = Freq * season_weight_2017,
-#                                              Freq_total = Freq_total * season_weight_2017)]
-#
-# batter_result_frequency[season == 2018, `:=`(Freq = Freq * season_weight_2018,
-#                                              Freq_total = Freq_total * season_weight_2018)]
-#
-# batter_result_frequency[season == 2019, `:=`(Freq = Freq * season_weight_2019,
-#                                              Freq_total = Freq_total * season_weight_2019)]
-#
-# batter_result_frequency = batter_result_frequency[, .(Freq = sum(Freq),
-#                                                       Freq_total = sum(Freq_total)), by = .(batter,
-#                                                                                             batter_id,
-#                                                                                             pitcher_hand,
-#                                                                                             season,
-#                                                                                             batter_hand.x,
-#                                                                                             play_type,
-#                                                                                             batter_hand.y)]
-#
-# batter_result_frequency[, result_frequency := Freq / Freq_total]
-#
-# total_frequency = unique(batter_result_frequency[, .(batter, pitcher_hand, batter_hand.x, Freq_total, season)])
-# total_frequency$season = NULL
-# total_frequency = aggregate(. ~ batter + pitcher_hand + batter_hand.x, total_frequency, sum) %>% data.table()
-#
-# batter_result_frequency = batter_result_frequency[, .(Freq = sum(Freq)), by = .(batter,
-#                                                                                 batter_id,
-#                                                                                 pitcher_hand,
-#                                                                                 batter_hand.x,
-#                                                                                 play_type,
-#                                                                                 batter_hand.y)]
-#
-# batter_result_frequency = merge(
-#   batter_result_frequency,
-#   total_frequency,
-#   by = c("batter", "pitcher_hand", "batter_hand.x")
-# )
-#
-# batter_result_frequency[, result_frequency := Freq / Freq_total]
-#
-# pitcher_result_frequency[season == 2017, `:=`(Freq = Freq * season_weight_2017,
-#                                               Freq_total = Freq_total * season_weight_2017)]
-#
-# pitcher_result_frequency[season == 2018, `:=`(Freq = Freq * season_weight_2018,
-#                                               Freq_total = Freq_total * season_weight_2018)]
-#
-# pitcher_result_frequency[season == 2019, `:=`(Freq = Freq * season_weight_2019,
-#                                               Freq_total = Freq_total * season_weight_2019)]
-#
-# pitcher_result_frequency = pitcher_result_frequency[, .(Freq = sum(Freq),
-#                                                         Freq_total = sum(Freq_total)), by = .(pitcher,
-#                                                                                               pitcher_id,
-#                                                                                               batter_hand,
-#                                                                                               season,
-#                                                                                               pitcher_hand.x,
-#                                                                                               play_type,
-#                                                                                               pitcher_hand.y)]
-#
-# pitcher_result_frequency[, result_frequency := Freq / Freq_total]
-#
-# total_frequency = unique(pitcher_result_frequency[, .(pitcher, batter_hand, pitcher_hand.x, Freq_total, season)])
-# total_frequency$season = NULL
-# total_frequency = aggregate(. ~ pitcher + batter_hand + pitcher_hand.x, total_frequency, sum) %>% data.table()
-#
-# pitcher_result_frequency = pitcher_result_frequency[, .(Freq = sum(Freq)), by = .(pitcher,
-#                                                                                   pitcher_id,
-#                                                                                   batter_hand,
-#                                                                                   pitcher_hand.x,
-#                                                                                   play_type,
-#                                                                                   pitcher_hand.y)]
-#
-# pitcher_result_frequency = merge(
-#   pitcher_result_frequency,
-#   total_frequency,
-#   by = c("pitcher", "batter_hand", "pitcher_hand.x")
-# )
-#
-# pitcher_result_frequency[, result_frequency := Freq / Freq_total]
+batter_result_frequency[, `:=`(Freq = as.numeric(Freq),
+                               Freq_total = as.numeric(Freq_total))]
 
-####
+pitcher_result_frequency[, `:=`(Freq = as.numeric(Freq),
+                                Freq_total = as.numeric(Freq_total))]
+
+batters_2020 = unique(batter_result_frequency[dataset == 'MLB 2020 Regular Season',batter])
+batters_2021 = unique(batter_result_frequency[dataset == 'MLB 2021 Regular Season',batter])
+
+batter_result_frequency[dataset == 'MLB 2020 Regular Season' & batter %in% batters_2021, `:=`(Freq = Freq * season_weight_2020,
+                                                                   Freq_total = Freq_total * season_weight_2020)]
+
+batter_result_frequency[dataset == 'MLB 2021 Regular Season' & batter %in% batters_2020, `:=`(Freq = Freq * season_weight_2021,
+                                                                   Freq_total = Freq_total * season_weight_2021)]
+
+frequency_calc = unique(batter_result_frequency[, .(dataset,
+                                                    batter,
+                                                    pitcher_hand,
+                                                    batter_hand.x,
+                                                    batter_hand.y,
+                                                    Freq_total)])
+
+frequency_calc[, Freq_total := sum(Freq_total), by = .(batter, pitcher_hand, batter_hand.x, batter_hand.y)]
+
+frequency_calc$dataset = NULL
+
+frequency_calc = unique(frequency_calc)
+
+batter_result_frequency$Freq_total = NULL
+
+batter_result_frequency = merge(
+  batter_result_frequency,
+  frequency_calc,
+  by = c("batter", "pitcher_hand", "batter_hand.x", "batter_hand.y")
+)
+
+batter_result_frequency = batter_result_frequency[, .(Freq = sum(Freq)), by = .(batter,
+                                                                                batter_id,
+                                                                                pitcher_hand,
+                                                                                batter_hand.x,
+                                                                                play_type,
+                                                                                batter_hand.y,
+                                                                                Freq_total)]
+
+batter_result_frequency[, result_frequency := Freq / Freq_total]
+
+pitchers_2020 = unique(pitcher_result_frequency[dataset == 'MLB 2020 Regular Season',pitcher])
+pitchers_2021 = unique(pitcher_result_frequency[dataset == 'MLB 2021 Regular Season',pitcher])
+
+pitcher_result_frequency[dataset == 'MLB 2020 Regular Season', `:=`(Freq = Freq * season_weight_2020,
+                                                                   Freq_total = Freq_total * season_weight_2020)]
+pitcher_result_frequency[dataset == 'MLB 2021 Regular Season', `:=`(Freq = Freq * season_weight_2021,
+                                                                   Freq_total = Freq_total * season_weight_2021)]
+
+frequency_calc = unique(pitcher_result_frequency[, .(dataset,
+                                                    pitcher,
+                                                    pitcher_hand.x,
+                                                    batter_hand,
+                                                    pitcher_hand.y,
+                                                    Freq_total)])
+
+frequency_calc[, Freq_total := sum(Freq_total), by = .(pitcher, batter_hand, pitcher_hand.x, pitcher_hand.y)]
+
+frequency_calc$dataset = NULL
+
+frequency_calc = unique(frequency_calc)
+
+pitcher_result_frequency$Freq_total = NULL
+
+pitcher_result_frequency = merge(
+  pitcher_result_frequency,
+  frequency_calc,
+  by = c("pitcher", "batter_hand", "pitcher_hand.x", "pitcher_hand.y")
+)
+
+pitcher_result_frequency = pitcher_result_frequency[, .(Freq = sum(Freq)), by = .(pitcher,
+                                                                                pitcher_id,
+                                                                                batter_hand,
+                                                                                pitcher_hand.x,
+                                                                                play_type,
+                                                                                pitcher_hand.y,
+                                                                                Freq_total)]
+
+pitcher_result_frequency[, result_frequency := Freq / Freq_total]
+
+batter_result_frequency = batter_result_frequency[, .(
+  batter,
+  batter_id,
+  pitcher_hand,
+  batter_hand.x,
+  play_type,
+  Freq,
+  batter_hand.y,
+  Freq_total,
+  result_frequency
+)]
+
+pitcher_result_frequency = pitcher_result_frequency[, .(
+  pitcher,
+  pitcher_id,
+  batter_hand,
+  pitcher_hand.x,
+  play_type,
+  Freq,
+  pitcher_hand.y,
+  Freq_total,
+  result_frequency
+)]
+
+mlb_dt[, batter_at_bat_count := seq_len(.N), by = batter]
+mlb_dt[, pitcher_at_bat_count := seq_len(.N), by = pitcher]
+
+replacement_batter_freq_calc = mlb_dt[dataset == 'MLB 2021 Regular Season' & batter_at_bat_count <= 30,]
+replacement_batter_freq_calc = replacement_batter_freq_calc[!(batter %in% mlb_dt$pitcher),]
+replacement_pitcher_freq_calc = mlb_dt[dataset == 'MLB 2021 Regular Season' & pitcher_at_bat_count <= 30,]
+
+replacement_batter_result_frequency = replacement_batter_freq_calc[, .(dataset,
+                                                                       batter,
+                                                                       batter_hand,
+                                                                       batter_id,
+                                                                       pitcher_hand,
+                                                                       play_type)] %>% group_by(dataset,
+                                                                                                batter,
+                                                                                                batter_hand,
+                                                                                                batter_id,
+                                                                                                pitcher_hand,
+                                                                                                play_type) %>%
+  summarise(Freq = n())
+
+replacement_pitcher_result_frequency = replacement_pitcher_freq_calc[, .(dataset,
+                                                                         pitcher,
+                                                                         pitcher_id,
+                                                                         pitcher_hand,
+                                                                         batter_hand,
+                                                                         play_type)] %>% group_by(dataset,
+                                                                                                  pitcher,
+                                                                                                  pitcher_id,
+                                                                                                  pitcher_hand,
+                                                                                                  batter_hand,
+                                                                                                  play_type) %>%
+  summarise(Freq = n())
+
 replacement_batter = aggregate(
-  result_frequency ~ pitcher_hand + batter_hand.x + batter_hand.y + play_type,
-  batter_result_frequency[batter_hand.x == "R", ],
+  result_frequency ~ pitcher_hand + batter_hand.x + play_type,
+  batter_result_frequency,
   mean
 ) %>% data.table()
 
 replacement_pitcher = aggregate(
-  result_frequency ~ pitcher_hand.x + batter_hand + pitcher_hand.y + play_type,
-  pitcher_result_frequency[pitcher_hand.x == "R", ],
+  result_frequency ~ pitcher_hand.x + batter_hand + play_type,
+  pitcher_result_frequency,
   mean
 ) %>% data.table()
+
+replacement_batter = replacement_batter[batter_hand.x == 'R' & pitcher_hand != 'S',]
+replacement_pitcher = replacement_pitcher[pitcher_hand.x == 'R' & batter_hand != 'S',]
 
 replacement_batter[, batter := "REPLACEMENT BATTER"]
 replacement_pitcher[, pitcher := "REPLACEMENT PITCHER"]
 
 replacement_batter = replacement_batter[, .(
-  dataset = "MLB 2020 Regular Season",
   batter,
-  batter_id = 4206969,
+  batter_id = 99999,
   pitcher_hand,
   batter_hand.x,
   play_type,
   Freq = 1000,
-  batter_hand.y,
+  batter_hand.y = batter_hand.x,
   Freq_total = 1000,
   result_frequency
 )]
 
 replacement_pitcher = replacement_pitcher[, .(
-  dataset = "MLB 2020 Regular Season",
   pitcher,
-  pitcher_id = 42069420,
+  pitcher_id = 99999,
   batter_hand,
   pitcher_hand.x,
   play_type,
   Freq = 1000,
-  pitcher_hand.y,
+  pitcher_hand.y = pitcher_hand.x,
   Freq_total = 1000,
   result_frequency
 )]
@@ -418,6 +467,24 @@ replacement_pitcher = replacement_pitcher[, .(
 batter_result_frequency = rbind(batter_result_frequency, replacement_batter)
 
 pitcher_result_frequency = rbind(pitcher_result_frequency, replacement_pitcher)
+
+replacement_batting_pitcher = replacement_batter[play_type %in% c('SINGLE',
+                                                                  'DOUBLE',
+                                                                  'GROUNDOUT',
+                                                                  'FLYOUT',
+                                                                  'STRIKEOUT',
+                                                                  'WALK')]
+
+replacement_batting_pitcher[play_type == "SINGLE", result_frequency := .08]
+replacement_batting_pitcher[play_type == "DOUBLE", result_frequency := .02]
+replacement_batting_pitcher[play_type == "GROUNDOUT", result_frequency := .25]
+replacement_batting_pitcher[play_type == "FLYOUT", result_frequency := .11]
+replacement_batting_pitcher[play_type == "STRIKEOUT", result_frequency := .5]
+replacement_batting_pitcher[play_type == "WALK", result_frequency := .04]
+
+replacement_batting_pitcher$batter = 'REPLACEMENT PITCHER'
+
+batter_result_frequency = rbind(batter_result_frequency, replacement_batting_pitcher)
 
 home_team_dt = unique(mlb_dt[inning == "1T", .(game_id, pitching_team)])
 
@@ -511,22 +578,19 @@ league_result_frequency = pitcher_result_frequency[, .(freq = sum(Freq)), by = .
 
 league_result_frequency[, league_freq_total := freq / sum(freq), by = .(batter_hand, pitcher_hand.x)]
 
-pitcher_result_frequency = merge(pitcher_result_frequency,
-                                 league_result_frequency[, .(play_type, batter_hand, pitcher_hand.x, league_freq_total)],
-                                 by = c("play_type", "batter_hand", "pitcher_hand.x"))
+pitcher_result_frequency = merge(
+  pitcher_result_frequency,
+  league_result_frequency[, .(play_type, batter_hand, pitcher_hand.x, league_freq_total)],
+  by = c("play_type", "batter_hand", "pitcher_hand.x")
+)
 
 pitcher_result_frequency[, pitcher_probability_multiplier := result_frequency / league_freq_total]
 
-batter_result_frequency_dt = subset(batter_result_frequency,
-                                    dataset %in% c("MLB 2020 Regular Season"))
-pitcher_result_frequency_dt = subset(pitcher_result_frequency,
-                                     dataset %in% c("MLB 2020 Regular Season"))
+batter_result_frequency_dt = batter_result_frequency
+pitcher_result_frequency_dt = pitcher_result_frequency
 
 rm(batter_result_frequency)
 rm(pitcher_result_frequency)
-
-
-
 
 
 
