@@ -165,3 +165,4 @@ best_lineup = optimal_lineups[lineup_id == 1, .(
 )]
 
 View(best_lineup)
+
