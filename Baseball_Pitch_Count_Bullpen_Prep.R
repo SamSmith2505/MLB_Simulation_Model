@@ -1,31 +1,27 @@
-batter_pitches_seen = mlb_dt[, .(dataset,
-                                 batter,
-                                 number_of_pitches)]
+batter_pitches_seen = mlb_dt[, .(batter,
+                                 number_of_pitches)] 
 
-pitcher_pitches_thrown = mlb_dt[, .(dataset,
-                                    pitcher,
+pitcher_pitches_thrown = mlb_dt[, .(pitcher,
                                     number_of_pitches)]
 
-batter_pitches_seen_mean = aggregate(number_of_pitches ~ dataset + batter, batter_pitches_seen, mean)
-pitcher_pitches_thrown_mean = aggregate(number_of_pitches ~ dataset + pitcher,
+batter_pitches_seen_mean = aggregate(number_of_pitches ~ batter, batter_pitches_seen, mean)
+pitcher_pitches_thrown_mean = aggregate(number_of_pitches ~ pitcher,
                                         pitcher_pitches_thrown,
                                         mean)
-batter_pitches_seen_sd = aggregate(number_of_pitches ~ dataset + batter, batter_pitches_seen, sd)
-pitcher_pitches_thrown_sd = aggregate(number_of_pitches ~ dataset + pitcher,
+batter_pitches_seen_sd = aggregate(number_of_pitches ~ batter, batter_pitches_seen, sd)
+pitcher_pitches_thrown_sd = aggregate(number_of_pitches ~ pitcher,
                                       pitcher_pitches_thrown,
                                       sd)
 
 batter_pitches_seen = merge(batter_pitches_seen_mean,
                             batter_pitches_seen_sd,
-                            by = c("dataset", "batter"))
+                            by = "batter")
 pitcher_pitches_thrown = merge(pitcher_pitches_thrown_mean,
                                pitcher_pitches_thrown_sd,
-                               by = c("dataset", "pitcher"))
+                               by = "pitcher")
 
-colnames(batter_pitches_seen) = c("dataset", "batter", "pitches_mean", "pitches_sd")
-colnames(pitcher_pitches_thrown) = c("dataset", "pitcher", "pitches_mean", "pitches_sd")
-batter_pitches_seen = subset(batter_pitches_seen, dataset == "MLB 2020 Regular Season") %>% data.table()
-pitcher_pitches_thrown = subset(pitcher_pitches_thrown, dataset == "MLB 2020 Regular Season") %>% data.table()
+colnames(batter_pitches_seen) = c("batter", "pitches_mean", "pitches_sd")
+colnames(pitcher_pitches_thrown) = c("pitcher", "pitches_mean", "pitches_sd")
 
 pitcher_pitch_counts = aggregate(number_of_pitches ~ game_id + pitcher, mlb_dt, sum)
 pitcher_pitch_means = aggregate(number_of_pitches ~ pitcher, pitcher_pitch_counts, mean)
@@ -57,7 +53,7 @@ colnames(starting_pitcher_dt) = c("game_id", "starting_pitcher", "pitching_team"
 bullpen_abs = merge(mlb_dt, starting_pitcher_dt, by = c("game_id", "pitching_team"))
 bullpen_abs = subset(bullpen_abs, pitcher != starting_pitcher & inning %in% c("7T", "7B", "8T", "8B", "9T", "9B"))
 
-bullpen_result_frequency = bullpen_abs[, .(dataset,
+bullpen_result_frequency = bullpen_abs[dataset == 'MLB 2021 Regular Season', .(dataset,
                                            pitching_team,
                                            play_type,
                                            pitcher_hand,
@@ -68,7 +64,7 @@ bullpen_result_frequency = bullpen_abs[, .(dataset,
                                                                       batter_hand) %>%
   summarise(Freq = n())
 
-total_bullpen_frequency = bullpen_abs[, .(dataset,
+total_bullpen_frequency = bullpen_abs[dataset == 'MLB 2021 Regular Season', .(dataset,
                                      pitching_team,
                                      pitcher_hand,
                                      batter_hand)] %>% group_by(dataset, pitching_team, pitcher_hand, batter_hand) %>%
@@ -91,7 +87,6 @@ bullpen_result_frequency = merge(bullpen_result_frequency,
 
 bullpen_result_frequency[, pitcher_probability_multiplier := result_frequency / league_freq_total]
 
-bullpen_result_frequency = subset(bullpen_result_frequency, dataset == "MLB 2020 Regular Season")
 bullpen_result_frequency = bullpen_result_frequency[, .(
   player = "BULLPEN",
   game_id = NA_integer_,
@@ -108,18 +103,23 @@ bullpen_result_frequency = bullpen_result_frequency[, .(
   pitcher_probability_multiplier,
   is_starting_pitcher = 0
 )]
-
+batter_pitches_seen %>% setDT()
 replacement_batter = batter_pitches_seen[, .(
-  dataset = "MLB 2020 Regular Season",
   batter = "REPLACEMENT BATTER",
   pitches_mean = mean(pitches_mean),
   pitches_sd = mean(pitches_sd, na.rm = T)
 )]
 
-batter_pitches_seen = rbind(batter_pitches_seen, replacement_batter)
+replacement_batter_pitcher = batter_pitches_seen[, .(
+  batter = "REPLACEMENT PITCHER",
+  pitches_mean = mean(pitches_mean),
+  pitches_sd = mean(pitches_sd, na.rm = T)
+)]
 
+batter_pitches_seen = rbind(batter_pitches_seen, replacement_batter_pitcher)
+
+pitcher_pitches_thrown %>% setDT()
 replacement_pitcher = pitcher_pitches_thrown[, .(
-  dataset = "MLB 2020 Regular Season",
   pitcher = "REPLACEMENT PITCHER",
   pitches_mean = mean(pitches_mean),
   pitches_sd = mean(pitches_sd, na.rm = T)
@@ -134,3 +134,5 @@ replacement_pitcher = pitch_count_historical[, .(
 )]
 
 pitch_count_historical = rbind(pitch_count_historical, replacement_pitcher)
+
+bullpen_result_frequency$dataset = NULL
